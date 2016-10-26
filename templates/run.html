@@ -1,0 +1,15 @@
+{{ define "content" }}
+<div class="page-header">
+   <h2>{{ .Title }}</h2>
+</div>
+{{ template "message" . }}
+
+<ul>
+    {{if eq .Lang 0 }}
+   <li><a href="/stop/">Stop the experiment.</a></li>
+   {{else if eq .Lang 1 }}
+   <li><a href="/stop/">Parar el experimento.</a></li>
+   {{end}}
+</ul>
+
+{{ end }}
