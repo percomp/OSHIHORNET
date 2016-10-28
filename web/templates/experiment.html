@@ -1,0 +1,20 @@
+{{ define "content" }}
+<div class="page-header">
+   <h2>{{ .Title }}</h2>
+</div>
+{{ template "message" . }}
+
+  {{if eq .Lang 0}}
+  <ul>
+     <li><a href="/config/">Configure the sensors of the platform.</a></li>
+     <li><a href="/test/">Test the sensors of the platform.</a></li>
+     <li><a href="/run/">Run the experiment.</a></li>
+  </ul>
+  {{else if eq .Lang 1}}
+  <ul>
+     <li><a href="/config/">Configurar los sensores de la plataforma.</a></li>
+     <li><a href="/test/">Comprobar los sensores de la plataforma.</a></li>
+     <li><a href="/run/">Ejecutar el experimento.</a></li>
+  </ul>
+  {{end}}
+{{ end }}
