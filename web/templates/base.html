@@ -11,6 +11,7 @@
    <link rel="shortcut icon" href="{{ .Static }}img/favicon.ico">
    <script src="{{ .Static }}js/jquery.min.js"></script>
    <script src="{{ .Static }}js/bootstrap.min.js"></script>
+   <!--script src="{{ .Static }}js/practices.js"></script-->
 </head>
 <body>
    <nav class="navbar navbar-default" role="navigation">
@@ -87,6 +88,22 @@
                <li><a href="/help/">Ayuda</a></li>
                {{end}}
            </ul>
+           <ul class="nav navbar-nav navbar-right">
+           		<li class="dropdown">
+               {{ if .PracticeSelected}}
+               <a href="/practice/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{{.CurrentPractice.Title}}<span class="caret"></span></a>
+               {{else if eq .Lang 0}}
+               <a href="/practice/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Practice<span class="caret"></span></a>
+               {{else if eq .Lang 1}}
+               <a href="/practice/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Pr&aacute;ctica<span class="caret"></span></a>
+               {{end}}
+                  <ul class="dropdown-menu">
+                     {{ range $key, $value := .PracticeList }}
+                     <li><a href=/practice/{{ $value.Id }}>{{ $value.Title }}</a></li>
+                     {{ end }}
+                  </ul>
+               </li>
+           </ul>
            <!-- 
             <ul class="nav navbar-nav navbat-right">
                <li class="nav-item navbar-right"> 
@@ -101,6 +118,33 @@
          </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
    </nav>
+
+   <div class="container practice-container">
+      {{ if .PracticeSelected }}
+      <div id={{.CurrentPractice.Title}} class="panel panel-default practice-panel">
+         <div class="panel-heading"><b>{{.CurrentPractice.Title}}</b></div>
+         <div class="panel-body">
+            <b>{{ if eq $.Lang 0 }}Description{{ else if eq $.Lang 1 }}Descripci&oacute;n{{ end }}</b><br>
+            {{.CurrentPractice.Description}}<br><br>
+            <b><a href=/practice/{{.CurrentPractice.Id}}/file/{{.CurrentPractice.Main_File}} target="_blank">{{ if eq $.Lang 0 }}Instructions{{ else if eq $.Lang 1 }}Instrucciones{{ end }}</a></b><br>
+            {{ $length := len .CurrentPractice.AttachmentList }}
+            {{ if ne $length  0 }}
+               <br><b>{{ if eq $.Lang 0 }}Attachments{{ else if eq $.Lang 1 }}Archivos Adjuntos{{ end }} :</b><br>
+               {{ range $key, $value := .CurrentPractice.AttachmentList }}
+                  <a href=/practice/{{$.CurrentPractice.Id}}/file/{{$value}}>{{$value}}</a><br>
+               {{ end }}
+            {{ end }}
+            {{ $length := len .CurrentPractice.LinkList }}
+            {{ if ne $length  0 }}
+               <br><b>{{ if eq $.Lang 0 }}Links{{ else if eq $.Lang 1 }}Enlaces{{ end }} :</b><br>
+               {{ range $key, $value := .CurrentPractice.LinkList }}
+                  <a href={{$value}} target="_blank">{{$value}}</a><br>
+               {{ end }}
+            {{ end }}
+         </div>
+      </div>
+      {{ end }}
+   </div>
 
    <div class="container">
              {{ if ge .State 0 }}

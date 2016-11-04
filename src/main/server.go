@@ -8,17 +8,21 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-//	"path" OSHIHORNET DEVELOPING
+	//	"path" OSHIHORNET DEVELOPING
 	"path/filepath"
 	"time"
 
-//	"bufio" OSHIHORNET DEVELOPING
+	//	"bufio" OSHIHORNET DEVELOPING
 	"bytes"
-//	"encoding/binary" OSHIHORNET DEVELOPING
-//	"runtime" OSHIHORNET DEVELOPING
+	//	"encoding/binary" OSHIHORNET DEVELOPING
+	//	"runtime" OSHIHORNET DEVELOPING
 
 	"github.com/mrmorphic/hwio"
 	"github.com/tarm/serial"
+
+	"encoding/xml" //OSHIHORNET
+	"io/ioutil"    //OSHIHORNET
+	"strings"      //OSHIHORNET
 )
 
 //sensors configuration
@@ -70,18 +74,22 @@ const (
 //// web related
 
 // StaticURL URL of the static content
-const StaticURL string = "/web/static/" //OSHIHORNET CHANGE
+const StaticURL string = "" + string(filepath.Separator) + "web" + string(filepath.Separator) + "static" + string(filepath.Separator) //OSHIHORNET CHANGE
 
 // StaticRoot path of the static content
-const StaticRoot string = "web/static/" //OSHIHORNET CHANGE
+const StaticRoot string = "web" + string(filepath.Separator) + "static" + string(filepath.Separator) //OSHIHORNET CHANGE
 
 // DataFilePath path of the data files on StaticRoot
-const DataFilePath string = "data/"
+const DataFilePath string = "data" + string(filepath.Separator)
 
 // DataFileExtension extension of the data files
 const DataFileExtension string = ".csv"
 
-const TemplateRoot="web/templates/" //OSHIHORNET CHANGE PARAMETRIZATION
+const TemplateRoot = "web" + string(filepath.Separator) + "templates" + string(filepath.Separator) //OSHIHORNET CHANGE PARAMETRIZATION
+
+const PracticeURL = "" + string(filepath.Separator) + "practice" + string(filepath.Separator)
+const PracticeRoot = "local" + string(filepath.Separator) //OSHIHORNET
+const PracticeInfoFilename = "oshiwasp_info.xml"          //OSHIHORNET
 
 //level of attention of the messages
 const (
@@ -106,6 +114,11 @@ const (
 	nLangs  = 2
 	ENGLISH = 0
 	SPANISH = 1
+)
+
+//practice OSHIHORNET
+const (
+	NOPRACTICE = ".'."
 )
 
 //title of pages respect of state
@@ -155,6 +168,22 @@ var (
 	messagePoweroffR          [nLangs]string
 )
 
+// OSHIHORNET Practice info
+type PracticeInfo struct {
+	Title          string
+	Id             string
+	Visibility     bool
+	Description    string
+	Main_File      string
+	AttachmentList []string `xml:"Attachment"`
+	LinkList       []string `xml:"Link"`
+	Path           string
+}
+type PracticeShort struct {
+	Title string
+	Id    string
+}
+
 //Context data about the configuration of the system and the web page
 type Context struct {
 	//web page related
@@ -170,6 +199,14 @@ type Context struct {
 	Time0 time.Time
 	//language
 	Lang int
+
+	// practice list OSHIHORNET
+	PracticeList []PracticeShort
+	Practice     []PracticeInfo
+
+	//current practice OSHIHORNET
+	CurrentPractice  PracticeInfo
+	PracticeSelected bool
 
 	//configuration name of the system
 	ConfigurationName string
@@ -202,7 +239,6 @@ type Context struct {
 	StateOfAccelerometer int
 	StateOfGyroscope     int
 }
-
 
 // SensorDataInBytes data for sensors in Arduino in bytes
 type SensorDataInBytes struct {
@@ -338,7 +374,78 @@ func (cntxt *Context) createOutputFile() {
 	log.Printf("Cretated output File %s", cntxt.DataFileName)
 }
 
+var (
+	practiceList []PracticeInfo
+)
+
+func (cntxt *Context) setPractices() { //OSHIHORNET
+
+	//get current practice tree
+
+	dirname := "local" + string(filepath.Separator)
+
+	d, err := os.Open(dirname)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	defer d.Close()
+	files := []string{}
+	err = filepath.Walk(dirname, func(path string, f os.FileInfo, err error) error {
+		files = append(files, path)
+		return nil
+	})
+
+	//TEMPORAL!!!!!!!!! VVVV
+	for _, file := range files {
+		if filepath.Base(file) == PracticeInfoFilename {
+			xmlFile, err := os.Open(file)
+			if err != nil {
+				fmt.Println("Error opening file:", err)
+				return
+			}
+			defer xmlFile.Close()
+			xmlReaded, _ := ioutil.ReadAll(xmlFile)
+			var practInfo PracticeInfo
+			xml.Unmarshal(xmlReaded, &practInfo)
+			if practInfo.Visibility {
+				practInfo.Path = filepath.Dir(file)
+				cntxt.Practice = append(cntxt.Practice, practInfo)
+			}
+		}
+	}
+	// TEMPORAL!!! ^^^^
+
+	for _, file := range files {
+		if filepath.Base(file) == PracticeInfoFilename {
+			xmlFile, err := os.Open(file)
+			if err != nil {
+				fmt.Println("Error opening file:", err)
+				return
+			}
+			defer xmlFile.Close()
+			xmlReaded, _ := ioutil.ReadAll(xmlFile)
+			var practInfo PracticeInfo
+			xml.Unmarshal(xmlReaded, &practInfo)
+			if practInfo.Visibility {
+				practInfo.Path = filepath.Dir(file)
+				practiceList = append(practiceList, practInfo)
+				var practShort PracticeShort
+				practShort.Title = practInfo.Title
+				practShort.Id = practInfo.Id
+				cntxt.PracticeList = append(cntxt.PracticeList, practShort)
+			}
+		}
+	}
+
+	//set current practice OSHIHORNET
+	cntxt.PracticeSelected = false
+
+}
+
 func (cntxt *Context) initiate() {
+
+	cntxt.setPractices() //OSHIHORNET
 
 	//set language
 	cntxt.Lang = SPANISH
@@ -427,7 +534,7 @@ func (cntxt *Context) initiate() {
 	messagePoweroffR[ENGLISH] = "The experiment is running! It MUST be stopped before switch the system off."
 	messagePoweroffR[SPANISH] = "El experimento está en ejecución! Debe ser parado antes de apagar el sistema."
 
-/* OSHIHORNET DEVELOPING
+	/* OSHIHORNET DEVELOPING
 	//acq.setOutputFileName(dataPath+dataFileName+dataFileExtension)
 	//acq.createOutputFile()
 	cntxt.connectArduinoSerialBT()
@@ -944,7 +1051,7 @@ func Test(w http.ResponseWriter, req *http.Request) {
 func Run(w http.ResponseWriter, req *http.Request) {
 	log.Println(">>>", req.URL)
 	log.Println(">>>", theContext)
-/* OSHIHORNET DEVELOPING
+	/* OSHIHORNET DEVELOPING
 	switch theContext.State {
 	case INIT:
 		//wrong state, show experiment page
@@ -1055,7 +1162,7 @@ func Run(w http.ResponseWriter, req *http.Request) {
 //Stop allows to stop the experiments
 func Stop(w http.ResponseWriter, req *http.Request) {
 	/* OSHIHORNET DEVELOPING
-	
+
 	log.Println(">>>", req.URL)
 	log.Println(">>>", theContext)
 
@@ -1260,10 +1367,67 @@ func StaticHandler(w http.ResponseWriter, req *http.Request) {
 	http.NotFound(w, req)
 }
 
+//PracticeHandler allows to server the practices references
+func PracticeHandler(w http.ResponseWriter, req *http.Request) {
+	query := strings.Split(req.URL.Path[len(PracticeURL):], "/")
+	if len(query[0]) != 0 {
+		var practSelected PracticeInfo
+		for _, practInfo := range practiceList {
+			if practInfo.Id == query[0] {
+				practSelected = practInfo
+				break
+			}
+		}
+		if practSelected.Id != "" {
+			theContext.CurrentPractice = practSelected
+			theContext.PracticeSelected = true
+			log.Println("Practice Selected: " + practSelected.Id)
+			if len(query) > 2 && query[1] == "file" {
+				var file string = query[2]
+				for i := 3; i < len(query); i++ {
+					file = file + string(filepath.Separator) + query[i]
+				}
+				var indexed bool = (file == practSelected.Main_File)
+				if !indexed {
+					for _, attch := range practSelected.AttachmentList {
+						indexed = (file == attch)
+						if indexed {
+							break
+						}
+					}
+				}
+				if indexed {
+					file = practSelected.Path + string(filepath.Separator) + file
+					log.Println("Access to file: " + file)
+					f, err := os.Open(file)
+					if err == nil {
+						content := io.ReadSeeker(f)
+						http.ServeContent(w, req, file, time.Now(), content)
+						return
+					}
+				}
+			}
+			http.Redirect(w, req, "/experiment/", http.StatusFound)
+		}
+		http.NotFound(w, req)
+	}
+
+	/*staticFile := req.URL.Path[len(StaticURL):]
+	if len(staticFile) != 0 {
+		f, err := http.Dir(StaticRoot).Open(staticFile)
+		if err == nil {
+			content := io.ReadSeeker(f)
+			http.ServeContent(w, req, staticFile, time.Now(), content)
+			return
+		}
+	}
+	http.NotFound(w, req)*/
+}
+
 func main() {
 	//set the initial state
 	theContext.initiate()
-//	theOshi.initiate() OSHIHORNET DEVELOPING
+	//	theOshi.initiate() OSHIHORNET DEVELOPING
 
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/thePlatform/", ThePlatform)
@@ -1279,6 +1443,7 @@ func main() {
 	http.HandleFunc("/about/", About)
 	http.HandleFunc("/help/", Help)
 	http.HandleFunc(StaticURL, StaticHandler)
+	http.HandleFunc(PracticeURL, PracticeHandler) //OSHIHORNET
 
 	// change this to show the real ip address of eth0
 	//log.Println("Listening on 192.168.1.1:8000")
