@@ -11,7 +11,6 @@
    <link rel="shortcut icon" href="{{ .Static }}img/favicon.ico">
    <script src="{{ .Static }}js/jquery.min.js"></script>
    <script src="{{ .Static }}js/bootstrap.min.js"></script>
-   <!--script src="{{ .Static }}js/practices.js"></script-->
 </head>
 <body>
    <nav class="navbar navbar-default" role="navigation">
@@ -122,8 +121,9 @@
    <div class="container practice-container">
       {{ if .PracticeSelected }}
       <div id={{.CurrentPractice.Title}} class="panel panel-default practice-panel">
-         <div class="panel-heading"><b>{{.CurrentPractice.Title}}</b></div>
-         <div class="panel-body">
+         <button {{if eq $.Lang 0 }}title="Show more"{{ else if eq $.Lang 1 }}title="Mostrar m&aacute;s"{{ end }} class="panel-heading btn-block text-left action-show-practice-info practice-info-toggle"><b>{{.CurrentPractice.Title}}</b></button>
+         <button {{if eq $.Lang 0 }}title="Show less"{{ else if eq $.Lang 1 }}title="Mostrar menos"{{ end }} class="panel-heading btn-block text-left action-hide-practice-info practice-info-toggle" style="display:none; margin-top:0;"><b>{{.CurrentPractice.Title}}</b></button>
+         <div class="panel-body practice-info-body ">
             <b>{{ if eq $.Lang 0 }}Description{{ else if eq $.Lang 1 }}Descripci&oacute;n{{ end }}</b><br>
             {{.CurrentPractice.Description}}<br><br>
             <b><a href=/practice/{{.CurrentPractice.Id}}/file/{{.CurrentPractice.Main_File}} target="_blank">{{ if eq $.Lang 0 }}Instructions{{ else if eq $.Lang 1 }}Instrucciones{{ end }}</a></b><br>
@@ -141,6 +141,8 @@
                   <a href={{$value}} target="_blank">{{$value}}</a><br>
                {{ end }}
             {{ end }}
+            <br>
+            <button {{if eq $.Lang 0 }}title="Show less"{{ else if eq $.Lang 1 }}title="Mostrar menos"{{ end }} class="action-hide-practice-info">{{ if eq $.Lang 0 }}Hide{{ else if eq $.Lang 1 }}Esconder{{ end }}</button>
          </div>
       </div>
       {{ end }}
@@ -191,5 +193,8 @@
       <!-- following the conten of the page -->
       {{ template "content" . }}
    </div>
+   {{ if .PracticeSelected }}
+   <script src="{{ .Static }}js/practices.js"></script>
+   {{end}}
 </body>
 </html>
